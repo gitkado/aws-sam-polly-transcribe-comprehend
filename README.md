@@ -20,7 +20,7 @@
   - template.yamlの7行目に作成するS3バケット名を入力して使用してください。
 
 ```sh
-# 関数実行(環境変数はtemplate.yamlが適用されないので引数env_varsで指定)
+# 関数実行
 $ sam local invoke TranslateFunction --event events/us_event.json
 $ sam local invoke ComprehendFunction --event events/ja_event.json
 
