@@ -2,7 +2,7 @@
 
 ## 構成
 
-!()[architecture.png]
+![architecture.png](architecture.png)
 
 ### TranslateFunction
 1. 英語文章でリクエストされたparams['text']を日本語文章に変換して出力(Translate)
