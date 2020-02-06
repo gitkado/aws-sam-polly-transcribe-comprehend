@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'SAM Template for aws-sam-polly-transcribe-comprehend'
+
+Parameters:
+  S3BucketName:
+    # Default: 
+    Type: String
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Runtime: ruby2.5
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
+  TranslateFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - translate:*
+
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-resource-iam-role.html
+  ComprehendFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - s3:*
+                  - polly:*
+                  - transcribe:*
+                  - comprehend:*
+
+  TranslateFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: translate_function/
+      Handler: app.lambda_handler
+      Role: !GetAtt TranslateFunctionRole.Arn
+      Timeout: 3
+      Events:
+        Translate:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /translate
+            Method: post
+
+  ComprehendFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: comprehend_function/
+      Handler: app.lambda_handler
+      Role: !GetAtt ComprehendFunctionRole.Arn
+      Timeout: 300
+      Environment:
+        Variables: 
+          S3_BUCKET_NAME: !Ref S3BucketName
+      Events:
+        Polly:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /comprehend
+            Method: post
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  TranslateApi:
+    Description: "API Gateway endpoint URL for Prod stage for Translate function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/translate/"
+  TranslateFunction:
+    Description: "Translate Lambda Function ARN"
+    Value: !GetAtt TranslateFunction.Arn
+  TranslateFunctionIamRole:
+    Description: "Implicit IAM Role created for Translate function"
+    Value: !GetAtt TranslateFunctionRole.Arn
+  ComprehendApi:
+    Description: "API Gateway endpoint URL for Prod stage for Comprehend function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/comprehend/"
+  ComprehendFunction:
+    Description: "Comprehend Lambda Function ARN"
+    Value: !GetAtt ComprehendFunction.Arn
+  ComprehendFunctionIamRole:
+    Description: "Implicit IAM Role created for Comprehend function"
+    Value: !GetAtt ComprehendFunctionRole.Arn
